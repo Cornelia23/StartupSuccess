@@ -32,7 +32,7 @@ def split_data(batch):
    target = batch[:,1:]
    return input, target
 
-def train(model, train_dataset, test_dataset, epochs=5, learning_rate=1e-3,
+def transformer_train(model, train_dataset, test_dataset, epochs=5, learning_rate=1e-3,
           wandb_run=None, checkpoint_dir="checkpoints", continue_training=False, submission_tracker=None) -> Tuple[tf.keras.Model, Dict[str, list]]:
     """
     Complete training function for language models.
