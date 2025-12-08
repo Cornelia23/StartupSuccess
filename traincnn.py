@@ -31,9 +31,6 @@ def main() -> None:
    categorical_array, vocab_sizes, lookups = encode_categorical(df)
    num_array = extract_numeric(df)
    labels = df['label_id'].values
-   num_cat_features = categorical_array.shape[1]
-   num_numeric_features = num_array.shape[1]
-   num_classes = len(status_to_id)
    (train_cat, train_num, y_train), (val_cat, val_num, y_val), (test_cat, test_num, y_test) = make_splits(
         categorical_array, num_array, labels
     )
@@ -49,18 +46,22 @@ def main() -> None:
 
    cnn.compile(
       optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3),
-      loss = tf.keras.losses.BinaryCrossentropy(from_logits=True),
+      loss = tf.keras.losses.BinaryCrossentropy(from_logits=False),
       metrics = ['accuracy'],
    )
 
    history = cnn.fit(
       train_ds,
       validation_data = val_ds,
-      epochs= 10,
+      epochs= 20,
    )
    
    test_loss, test_acc = cnn.evaluate(test_ds)
-   print(f"Test loss: {test_loss}, Test accuracy: {test_cat}")
+   predictions = cnn.predict(test_ds)
+
+   
+   print(predictions)
+   print(f"Test loss: {test_loss}, Test accuracy: {test_acc}")
 
 
 if __name__ == '__main__':

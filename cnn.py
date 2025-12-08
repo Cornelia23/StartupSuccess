@@ -20,11 +20,15 @@ class StartupCNN(tf.keras.Model):
                 input_dim = vocab_size + 1,
                 output_dim = self.embedding_dim)
                 for vocab_size in self.vocab_sizes]
-       self.conv1 = tf.keras.layers.Conv1D(filters=32,kernel_size=3, activation = 'relu', padding = 'same')
+       
+       self.conv1 = tf.keras.layers.Conv1D(filters=64,kernel_size=3, activation = 'relu', padding = 'same')
+       self.batch_norm1 = tf.keras.layers.BatchNormalization()
        self.conv2 = tf.keras.layers.Conv1D(filters = 32, kernel_size = 3, activation = 'relu', padding='same')
+       self.batch_norm2 = tf.keras.layers.BatchNormalization()
        self.flatten = tf.keras.layers.Flatten()
        self.hidden_layer = tf.keras.layers.Dense(64, activation= 'relu')
-       self.output_layer = tf.keras.layers.Dense(1, activation = 'sigmoid')
+       self.dropout_layer = tf.keras.layers.Dropout(0.25)
+       self.output_layer = tf.keras.layers.Dense(1, activation = 'softmax')
 
     def call(self, inputs, training=False):
         categorical_inputs = inputs['categorical_inputs']
@@ -40,9 +44,12 @@ class StartupCNN(tf.keras.Model):
         x = tf.concat([cat_features, numeric_inputs], axis=1)
         x = tf.expand_dims(x, axis=-1)
         x = self.conv1(x)
+        x = self.batch_norm1(x)
         x = self.conv2(x)
+        x = self.batch_norm2(x)
         x = self.flatten(x)
         x = self.hidden_layer(x)
+        x = self.dropout_layer(x)
         logits = self.output_layer(x)
         return logits
 
