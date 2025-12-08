@@ -331,8 +331,8 @@ def preprocess_cax(df_raw: pd.DataFrame) -> pd.DataFrame:
 
 if __name__ == "__main__":
     # Adjust paths if needed
-    cax_path = "./data/CAX_Startup_Data.csv"
-    cb_path = "./data/startup data.csv"
+    cax_path = "./data/original/CAX_Startup_Data.csv"
+    cb_path = "./data/original/startup data.csv"
 
     cax_raw = pd.read_csv(cax_path)
     cb_raw = pd.read_csv(cb_path)
@@ -340,7 +340,7 @@ if __name__ == "__main__":
     cax_clean = preprocess_cax(cax_raw)
     cb_clean = preprocess_crunchbase(cb_raw)
 
-    cax_clean.to_csv("cax_preprocessed_30cols.csv", index=False)
-    cb_clean.to_csv("crunchbase_preprocessed_30cols.csv", index=False)
+    cax_clean.to_csv("data/cleaned/cax_preprocessed_30cols.csv", index=False)
+    cb_clean.to_csv("data/cleaned/crunchbase_preprocessed_30cols.csv", index=False)
 
     print("Saved cax_preprocessed_30cols.csv and crunchbase_preprocessed_30cols.csv")
