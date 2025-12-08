@@ -7,7 +7,7 @@ import tensorflow as tf
 # Feature configuration for the 30 canonical columns
 # ------------------------------------------------------------
 
-# Treat these as categorical tokens for the transformer
+# Categorical features for the transformer branch
 CATEGORICAL_FEATURES = [
     "country",
     "state_code",
@@ -16,7 +16,7 @@ CATEGORICAL_FEATURES = [
     "primary_industry",
 ]
 
-# Treat these as numeric inputs for the MLP branch
+# Numeric features for the MLP branch
 NUMERIC_FEATURES = [
     "age_years",
     "is_software",
@@ -37,40 +37,75 @@ NUMERIC_FEATURES = [
     "longitude",
 ]
 
-# We will train on `status` (multi-class: acquired / closed / operating / ipo / ...)
+# Heavy-tailed numeric features to log-transform
+HEAVY_TAILED = [
+    "funding_total_usd",
+    "employee_count",
+    "num_founders",
+    "avg_participants",
+]
+
+# We train on `status` (multi-class: acquired / closed / operating / ...)
 LABEL_COLUMN = "status"
 
 
 def load_and_clean_csv(path: str):
+    """
+    Load the combined 30-column CSV and:
+      - normalize and encode `status` as labels,
+      - clean numeric features (impute, clip, log-transform, standardize),
+      - clean categorical features (strings with 'UNKNOWN' for missing).
+
+    Returns:
+      df: cleaned DataFrame with a 'label_id' column
+      status_to_id: dict mapping status string -> integer id
+    """
     df = pd.read_csv(path)
 
-    # Drop rows with no status at all
+    # --- Label: status ---
     df = df.dropna(subset=[LABEL_COLUMN])
-
-    # Normalize status strings (important because CAX & Crunchbase both feed into this)
     df[LABEL_COLUMN] = df[LABEL_COLUMN].astype(str).str.lower()
 
-    # OPTIONAL (uncomment if you ONLY want acquired vs closed):
+    # If you ever want binary only (acquired vs closed), uncomment:
     # df = df[df[LABEL_COLUMN].isin(["acquired", "closed"])]
 
-    # Map status strings to integer class IDs
     unique_statuses = sorted(df[LABEL_COLUMN].unique())
     status_to_id = {s: i for i, s in enumerate(unique_statuses)}
     df["label_id"] = df[LABEL_COLUMN].map(status_to_id)
 
-    # ---- Numeric features: convert to float and impute ----
+    # --- Numeric: convert to float + median impute ---
     for col in NUMERIC_FEATURES:
         if col not in df.columns:
             continue
         df[col] = pd.to_numeric(df[col], errors="coerce")
-
         median = df[col].median()
-        # If entire column is NaN, median will be NaN → fall back to 0.0
         if pd.isna(median):
             median = 0.0
         df[col] = df[col].fillna(median)
 
-    # ---- Categorical features: strings with "UNKNOWN" for missing ----
+    # --- Clip weird ages (no negative years) ---
+    for col in ["age_years", "age_at_first_funding_years", "age_at_last_funding_years"]:
+        if col in df.columns:
+            df[col] = df[col].clip(lower=0.0)
+
+    # --- Log-transform heavy-tailed features ---
+    for col in HEAVY_TAILED:
+        if col in df.columns:
+            # Ensure non-negative before log1p
+            df[col] = df[col].clip(lower=0.0)
+            df[col] = np.log1p(df[col])
+
+    # --- Standardize all numeric features (mean 0, std 1) ---
+    for col in NUMERIC_FEATURES:
+        if col not in df.columns:
+            continue
+        mean = df[col].mean()
+        std = df[col].std()
+        if std == 0 or np.isnan(std):
+            std = 1.0
+        df[col] = (df[col] - mean) / std
+
+    # --- Categorical: strings with 'UNKNOWN' for missing ---
     for col in CATEGORICAL_FEATURES:
         if col not in df.columns:
             continue
