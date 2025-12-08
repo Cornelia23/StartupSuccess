@@ -343,4 +343,10 @@ if __name__ == "__main__":
     cax_clean.to_csv("data/cleaned/cax_preprocessed_30cols.csv", index=False)
     cb_clean.to_csv("data/cleaned/crunchbase_preprocessed_30cols.csv", index=False)
 
+
+    combined = pd.concat([cax_clean, cb_clean], ignore_index=True)
+
+    # Save the combined file
+    combined.to_csv("data/cleaned/combined_startups_30cols.csv", index=False)
+
     print("Saved cax_preprocessed_30cols.csv and crunchbase_preprocessed_30cols.csv")
