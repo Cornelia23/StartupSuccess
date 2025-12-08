@@ -9,7 +9,7 @@ from data_utils import (
 )
 from startup_transformer import StartupTransformer
 
-CSV_PATH = "./data/cleaned_startup_data.csv"   # TODO: update this
+CSV_PATH = "./data/cleaned/combined_startups_30cols.csv"   # TODO: update this
 
 
 def main():

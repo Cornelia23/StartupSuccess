@@ -3,55 +3,74 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 
+# ------------------------------------------------------------
+# Feature configuration for the 30 canonical columns
+# ------------------------------------------------------------
+
+# Treat these as categorical tokens for the transformer
 CATEGORICAL_FEATURES = [
-    "city",
     "country",
+    "state_code",
+    "city",
     "region",
     "primary_industry",
-    "funding_stage",
-    "lead_investor_tier",
-    "has_vc_backing",
-    "accelerator",
-    "repeat_founder",
 ]
 
+# Treat these as numeric inputs for the MLP branch
 NUMERIC_FEATURES = [
-    "age",
+    "age_years",
+    "is_software",
+    "is_web",
+    "is_mobile",
+    "is_enterprise",
+    "is_biotech_or_health",
     "funding_total_usd",
-    "num_rounds",
-    "age_first_funding",
-    "age_last_funding",
-    "avg_investor_participation",
+    "funding_rounds",
+    "age_at_first_funding_years",
+    "age_at_last_funding_years",
+    "has_VC",
+    "has_angel",
+    "avg_participants",
+    "num_founders",
+    "employee_count",
+    "latitude",
+    "longitude",
 ]
 
+# We will train on `status` (multi-class: acquired / closed / operating / ipo / ...)
 LABEL_COLUMN = "status"
 
 
 def load_and_clean_csv(path: str):
     df = pd.read_csv(path)
 
-    # Drop rows without a status
+    # Drop rows with no status at all
     df = df.dropna(subset=[LABEL_COLUMN])
 
-    # Map status to integer labels
+    # Normalize status strings (important because CAX & Crunchbase both feed into this)
+    df[LABEL_COLUMN] = df[LABEL_COLUMN].astype(str).str.lower()
+
+    # OPTIONAL (uncomment if you ONLY want acquired vs closed):
+    # df = df[df[LABEL_COLUMN].isin(["acquired", "closed"])]
+
+    # Map status strings to integer class IDs
     unique_statuses = sorted(df[LABEL_COLUMN].unique())
     status_to_id = {s: i for i, s in enumerate(unique_statuses)}
     df["label_id"] = df[LABEL_COLUMN].map(status_to_id)
 
-    # Clean/convert numeric features to float
+    # ---- Numeric features: convert to float and impute ----
     for col in NUMERIC_FEATURES:
         if col not in df.columns:
             continue
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
         median = df[col].median()
-        # If column is all NaN, median will be NaN -> fall back to 0.0
+        # If entire column is NaN, median will be NaN → fall back to 0.0
         if pd.isna(median):
             median = 0.0
         df[col] = df[col].fillna(median)
 
-
-    # Ensure categorical features are strings and fill missing with "UNKNOWN"
+    # ---- Categorical features: strings with "UNKNOWN" for missing ----
     for col in CATEGORICAL_FEATURES:
         if col not in df.columns:
             continue
@@ -62,11 +81,12 @@ def load_and_clean_csv(path: str):
 
 def encode_categorical(df: pd.DataFrame):
     """
-    Build vocabularies for each categorical column and encode them to integer IDs.
+    Encode each categorical column into integer IDs with its own vocabulary.
+
     Returns:
-        cat_array: shape (N, num_cat_features), int32
+        cat_array: (N, num_cat_features) int32
         vocab_sizes: list[int]
-        lookups: dict[col_name] -> {category_string: int_id}
+        lookups: {col_name: {category_string: int_id}}
     """
     cat_ids = []
     vocab_sizes = []
@@ -74,7 +94,7 @@ def encode_categorical(df: pd.DataFrame):
 
     for col in CATEGORICAL_FEATURES:
         if col not in df.columns:
-            # stub column if missing
+            # stub if column missing (shouldn't happen with canonical 30, but safe)
             cat_ids.append(np.zeros((len(df),), dtype="int32"))
             vocab_sizes.append(1)
             lookups[col] = {"UNKNOWN": 0}
@@ -82,7 +102,8 @@ def encode_categorical(df: pd.DataFrame):
 
         values = df[col].astype(str).values
         unique_vals = sorted(pd.unique(values))
-        # Reserve 0 for "UNKNOWN/OOV"; start vocab at 1
+
+        # Reserve 0 for "UNKNOWN"/OOV; start real tokens at 1
         vocab = {v: i + 1 for i, v in enumerate(unique_vals)}
         vocab["UNKNOWN"] = 0
 
@@ -97,18 +118,23 @@ def encode_categorical(df: pd.DataFrame):
 
 
 def extract_numeric(df: pd.DataFrame):
+    """
+    Collect numeric features into a single array of shape (N, num_numeric_features).
+    """
     num_data = []
     for col in NUMERIC_FEATURES:
         if col not in df.columns:
-            # Use zeros for missing numeric columns
             num_data.append(np.zeros((len(df),), dtype="float32"))
         else:
             num_data.append(df[col].astype("float32").values)
-    num_array = np.stack(num_data, axis=1)  # (N, num_numeric_features)
+    num_array = np.stack(num_data, axis=1)
     return num_array
 
 
 def make_splits(cat_array, num_array, labels, train_frac=0.7, val_frac=0.15, seed=42):
+    """
+    Random train/val/test split with consistent shuffling across all arrays.
+    """
     N = cat_array.shape[0]
     rng = np.random.default_rng(seed)
     indices = np.arange(N)
@@ -132,6 +158,9 @@ def make_splits(cat_array, num_array, labels, train_frac=0.7, val_frac=0.15, see
 
 
 def make_dataset(cat_array, num_array, labels, batch_size=64, shuffle=True):
+    """
+    Wrap arrays into a tf.data.Dataset that matches the transformer input signature.
+    """
     x = {
         "categorical_inputs": cat_array.astype("int32"),
         "numeric_inputs": num_array.astype("float32"),
