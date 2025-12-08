@@ -9,7 +9,7 @@ import random
 import math
 from data_utils import (load_and_clean_csv, encode_categorical, extract_numeric, make_dataset, make_splits)
 
-CSV_PATH = "data/cleaned/cax_preprocessed_30cols.csv"
+CSV_PATH = "data/original/startup data.csv"
 
 def visualize_loss(history: list[float]) -> None:
    plt.plot(history.history['loss'], label = 'Train')

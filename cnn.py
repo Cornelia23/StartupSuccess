@@ -26,7 +26,7 @@ class StartupCNN(tf.keras.Model):
        self.conv2 = tf.keras.layers.Conv1D(filters = 32, kernel_size = 3, activation = 'relu', padding='same')
        self.batch_norm2 = tf.keras.layers.BatchNormalization()
        self.flatten = tf.keras.layers.Flatten()
-       self.hidden_layer = tf.keras.layers.Dense(64, activation= 'relu')
+       self.hidden_layer = tf.keras.layers.Dense(64, activation= 'leaky_relu')
        self.dropout_layer = tf.keras.layers.Dropout(0.25)
        self.output_layer = tf.keras.layers.Dense(1, activation = 'softmax')
 
