@@ -9,7 +9,7 @@ from data_utils import (
 )
 from startup_transformer import StartupTransformer
 
-CSV_PATH = "./data/cleaned_startup_data.csv"   # TODO: update this
+CSV_PATH = "./data/cleaned/combined_startups_30cols.csv"   # TODO: update this
 
 
 def main():
@@ -54,7 +54,7 @@ def main():
 
     # 5. Compile
     model.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=5e-4),
         loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
         metrics=["accuracy"],
     )
