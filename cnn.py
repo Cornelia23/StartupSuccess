@@ -11,31 +11,39 @@ class StartupCNN(tf.keras.Model):
         -Inputs: categorical_inputs, numeric_inputs
         -Output: logits
     '''
-    def __init__(self, vocab_sizes, num_numeric_features, embedding_dim=8, **kwargs):
+    def __init__(self, vocab_sizes, num_numeric_features, embedding_dim=8, num_classes=4, **kwargs):
        super().__init__(**kwargs)
        self.vocab_sizes = vocab_sizes
        self.num_numeric_features = num_numeric_features
        self.embedding_dim = embedding_dim
-       self.embedding_layers = [tf.keras.layers.Embedding(
-                input_dim = vocab_size + 1,
-                output_dim = self.embedding_dim)
-                for vocab_size in self.vocab_sizes]
+       self.num_classes = num_classes
+
+       self.embedding_layers = [
+           tf.keras.layers.Embedding(
+               input_dim=vocab_size + 1,
+               output_dim=self.embedding_dim
+           )
+           for vocab_size in self.vocab_sizes
+       ]
        
-       self.conv1 = tf.keras.layers.Conv1D(filters=64,kernel_size=3, activation = 'relu', padding = 'same')
+       self.conv1 = tf.keras.layers.Conv1D(filters=64, kernel_size=3, activation='relu', padding='same')
        self.batch_norm1 = tf.keras.layers.BatchNormalization()
-       self.conv2 = tf.keras.layers.Conv1D(filters = 32, kernel_size = 3, activation = 'relu', padding='same')
+       self.conv2 = tf.keras.layers.Conv1D(filters=32, kernel_size=3, activation='relu', padding='same')
        self.batch_norm2 = tf.keras.layers.BatchNormalization()
        self.flatten = tf.keras.layers.Flatten()
-       self.hidden_layer = tf.keras.layers.Dense(64, activation= 'relu')
+       self.hidden_layer = tf.keras.layers.Dense(64, activation='relu')
        self.dropout_layer = tf.keras.layers.Dropout(0.25)
-       self.output_layer = tf.keras.layers.Dense(1, activation = 'softmax')
+
+       # ---- CHANGED ----
+       self.output_layer = tf.keras.layers.Dense(self.num_classes, activation='softmax')
 
     def call(self, inputs, training=False):
         categorical_inputs = inputs['categorical_inputs']
         numeric_inputs = inputs.get('numeric_inputs', None)
         embeddings = []
+
         for i, embedding_layer in enumerate(self.embedding_layers):
-            cat_feature = categorical_inputs[:,i:i+1]
+            cat_feature = categorical_inputs[:, i:i+1]
             embedding = embedding_layer(cat_feature)
             embedding = tf.squeeze(embedding, axis=1)
             embeddings.append(embedding)
@@ -52,14 +60,3 @@ class StartupCNN(tf.keras.Model):
         x = self.dropout_layer(x)
         logits = self.output_layer(x)
         return logits
-
-
-
-        
-
-
-
-
-
-
-
